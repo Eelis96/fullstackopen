@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Personform from './components/Personform'
 import Filter from './components/Filter'
 import Persons from './components/Persons'
-import axios from 'axios'
+import noteService from './services/phonebookService'
 
 const App = () => {
   const [persons, setPersons] = useState([])  
@@ -11,28 +11,56 @@ const App = () => {
   const [filterName, setFilterName] = useState('')
 
   useEffect(() => {
-    axios.get('http://localhost:3001/persons')
-      .then(response => {
-        setPersons(response.data)
-      })
+    noteService.getAll().then(data => {
+      console.log(data)
+      setPersons(data)
+    })
   }, [])
 
   const addPerson = (event) => {
     event.preventDefault()
     const personObject = {
       name: newName,
-      number: newNumber,
-      id: persons.length + 1,
+      number: newNumber
     }
-    const personExists = persons.some(person => person.name === newName)
+    const personExists = persons.find(person => person.name === newName)
     if (personExists) {
-      alert(`${newName} is already added to phonebook`)
+      if(window.confirm(`${newName} is already in the phonebook. Woould you like to replace the old number?`)){
+        const updatedPerson = { ...personExists, number: newNumber }
+        noteService.update(personExists.id, updatedPerson)
+          .then(returnedPerson => {
+            setPersons(persons.map(p => p.id === personExists.id ? returnedPerson : p))
+            setNewName('')
+            setNewNumber('')
+          })
+          .catch(error => {
+            console.error('Error updating person:', error)
+          })
+          
+      }
       return
     }
+
+    noteService.create(personObject)
+      .then(newPerson => {
+        setPersons(persons.concat(newPerson))
+      })
+      .catch(error => {
+        console.error('Error adding person:', error)
+      })
     
-    setPersons(persons.concat(personObject))
+    
     setNewName('')
     setNewNumber('')
+  }
+
+  const deletePerson = (person) => {
+    if(window.confirm(`Delete ${person.name}`)) {
+      noteService.remove(person.id)
+        .then(() => {
+          setPersons(persons.filter(p => p.id !== person.id))
+        })
+    }
   }
 
   const personsToShow = filterName === ''
@@ -43,6 +71,7 @@ const App = () => {
     <div>
       <h2>Phonebook</h2>
       <Filter filter={filterName} handleFilterChange={(event) => setFilterName(event.target.value)} />
+      <h2>Add new person</h2>
       <Personform 
         addPerson={addPerson} 
         newName={newName} 
@@ -51,7 +80,7 @@ const App = () => {
         handleNumberChange={(event) => setNewNumber(event.target.value)} 
       />
       <h2>Numbers</h2>
-      <Persons persons={personsToShow} filter={filterName}/>
+      <Persons persons={personsToShow} filter={filterName} deletePerson={deletePerson}/>
     </div>
   )
 
