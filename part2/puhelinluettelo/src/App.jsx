@@ -1,18 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Personform from './components/Personform'
 import Filter from './components/Filter'
 import Persons from './components/Persons'
 import noteService from './services/phonebookService'
+import Notification from './components/Notification'
+import Error from './components/Error'
 
 const App = () => {
   const [persons, setPersons] = useState([])  
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filterName, setFilterName] = useState('')
+  const [notification, setNotification] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
+  const errorTimeout = useRef(null)
 
   useEffect(() => {
     noteService.getAll().then(data => {
-      console.log(data)
+      // console.log(data)
       setPersons(data)
     })
   }, [])
@@ -30,20 +35,36 @@ const App = () => {
         noteService.update(personExists.id, updatedPerson)
           .then(returnedPerson => {
             setPersons(persons.map(p => p.id === personExists.id ? returnedPerson : p))
+            setNotification(`Updated ${returnedPerson.name}'s number`)
+            clearTimeout(errorTimeout.current)
+                errorTimeout.current = setTimeout(() => {
+                    setNotification(null)
+                }, 5000)
             setNewName('')
             setNewNumber('')
           })
           .catch(error => {
             console.error('Error updating person:', error)
-          })
+            setErrorMessage(`Information of ${personExists.name} has already been removed from server`)          
+            clearTimeout(errorTimeout.current)
+                errorTimeout.current = setTimeout(() => {
+                    setErrorMessage(null)
+                }, 5000)
+            })
           
       }
       return
     }
 
+
     noteService.create(personObject)
       .then(newPerson => {
         setPersons(persons.concat(newPerson))
+        setNotification(`Added ${newPerson.name}`)
+            clearTimeout(errorTimeout.current)
+                errorTimeout.current = setTimeout(() => {
+                    setNotification(null)
+                }, 5000)
       })
       .catch(error => {
         console.error('Error adding person:', error)
@@ -59,6 +80,13 @@ const App = () => {
       noteService.remove(person.id)
         .then(() => {
           setPersons(persons.filter(p => p.id !== person.id))
+          setNotification(`Deleted ${person.name}`)
+            clearTimeout(errorTimeout.current)
+                errorTimeout.current = setTimeout(() => {
+                    setNotification(null)
+                }, 5000)
+        }).catch(error => {
+          console.error(`Error deleting ${person.name}:`, error)
         })
     }
   }
@@ -70,8 +98,10 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={notification}></Notification>
+      <Error message={errorMessage}></Error>
       <Filter filter={filterName} handleFilterChange={(event) => setFilterName(event.target.value)} />
-      <h2>Add new person</h2>
+      <h2>Add new person</h2>      
       <Personform 
         addPerson={addPerson} 
         newName={newName} 
