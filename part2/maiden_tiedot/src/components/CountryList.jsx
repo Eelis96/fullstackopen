@@ -1,6 +1,7 @@
 import CountryDetail from "./CountryDetail"
+import ShowButton from "./ShowButton"
 
-const CountryList = ({countries}) => {
+const CountryList = ({countries, onSelect}) => {
 
     if(countries.length >= 10) {
         return <p>Too many countries, be more specific.</p>
@@ -10,14 +11,17 @@ const CountryList = ({countries}) => {
         return (
         <ul>            
             {countries.map(country => (
-            <li key={country.name.common}>{country.name.common}</li>
+            <li key={country.name.common}>{country.name.common}
+            <ShowButton onClick={() => onSelect(country)} />
+            
+            </li>
             ))}
         </ul>
         )
     }
 
     if(countries.length === 1) {
-        return <CountryDetail country={countries} />
+        return <CountryDetail country={countries[0]} />
     }
 }
 
